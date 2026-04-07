@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>கணினி கற்போம் - ICT Chapter 2 Game</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #0a0a1a;
+    --surface: #12122a;
+    --card: #1a1a3e;
+    --accent1: #ff6b35;
+    --accent2: #ffd700;
+    --accent3: #00e5ff;
+    --accent4: #b44bff;
+    --input-color: #00e676;
+    --output-color: #ff4081;
+    --storage-color: #ffab40;
+    --cpu-color: #40c4ff;
+    --text: #f0f0ff;
+    --text-muted: #9090b0;
+    --success: #00e676;
+    --fail: #ff1744;
+    --glow: 0 0 20px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Baloo Thambi 2', 'Noto Sans Tamil', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 20%, rgba(0,229,255,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(180,75,255,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(255,107,53,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Floating particles */
+  .particle {
+    position: fixed;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    animation: float-up linear infinite;
+    opacity: 0;
+  }
+  @keyframes float-up {
+    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 0.5; }
+    100% { transform: translateY(-20px) scale(1.5); opacity: 0; }
+  }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none;
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    padding: 20px;
+    animation: fadeIn 0.5s ease;
+  }
+  .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+  /* ===== HOME SCREEN ===== */
+  .home-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    text-align: center;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .home-title .line1 { color: var(--accent3); text-shadow: 0 0 30px var(--accent3); }
+  .home-title .line2 { color: var(--accent2); text-shadow: 0 0 30px var(--accent2); }
+
+  .home-subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .computer-hero {
+    font-size: 6rem;
+    text-align: center;
+    margin: 20px 0;
+    animation: pulse-glow 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px var(--accent3));
+  }
+  @keyframes pulse-glow {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px var(--accent3)); }
+    50% { transform: scale(1.05); filter: drop-shadow(0 0 40px var(--accent3)); }
+  }
+
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    width: 100%;
+    margin: 20px 0;
+  }
+
+  .mode-card {
+    background: var(--card);
+    border: 2px solid transparent;
+    border-radius: 20px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .mode-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .mode-card:hover { transform: translateY(-5px); border-color: var(--accent3); }
+  .mode-card:hover::before { opacity: 0.1; background: var(--accent3); }
+
+  .mode-card .icon { font-size: 3rem; margin-bottom: 10px; display: block; }
+  .mode-card .title { font-size: 1.3rem; font-weight: 800; color: var(--accent2); margin-bottom: 6px; }
+  .mode-card .desc { font-size: 0.85rem; color: var(--text-muted); }
+  .mode-card .badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--accent1);
+    color: white;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+  }
+
+  /* ===== TOP BAR ===== */
+  .top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(10,10,26,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .score-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,215,0,0.15);
+    border: 1px solid var(--accent2);
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 1rem;
+  }
+
+  .timer-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,229,255,0.15);
+    border: 1px solid var(--accent3);
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-weight: 700;
+    color: var(--accent3);
+    font-size: 1rem;
+    transition: all 0.3s;
+  }
+  .timer-display.urgent {
+    background: rgba(255,23,68,0.25);
+    border-color: var(--fail);
+    color: var(--fail);
+    animation: shake 0.3s ease infinite;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+
+  .lives-display {
+    display: flex;
+    gap: 4px;
+    font-size: 1.3rem;
+  }
+
+  .progress-bar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent3), var(--accent4));
+    transition: width 0.5s ease;
+    z-index: 100;
+    box-shadow: 0 0 10px var(--accent3);
+  }
+
+  /* ===== GAME AREA ===== */
+  .game-area {
+    margin-top: 80px;
+    width: 100%;
+    max-width: 800px;
+    padding: 10px;
+  }
+
+  /* ===== QUESTION CARD ===== */
+  .question-card {
+    background: var(--card);
+    border: 2px solid rgba(0,229,255,0.3);
+    border-radius: 24px;
+    padding: 28px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    animation: slideDown 0.4s ease;
+  }
+  .question-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    animation: shimmer 3s infinite;
+  }
+  @keyframes shimmer { 100% { left: 150%; } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .q-number {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .q-category {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .q-cat-input { background: rgba(0,230,118,0.2); color: var(--input-color); border: 1px solid var(--input-color); }
+  .q-cat-output { background: rgba(255,64,129,0.2); color: var(--output-color); border: 1px solid var(--output-color); }
+  .q-cat-storage { background: rgba(255,171,64,0.2); color: var(--storage-color); border: 1px solid var(--storage-color); }
+  .q-cat-cpu { background: rgba(64,196,255,0.2); color: var(--cpu-color); border: 1px solid var(--cpu-color); }
+  .q-cat-general { background: rgba(180,75,255,0.2); color: var(--accent4); border: 1px solid var(--accent4); }
+
+  .q-device-icon {
+    font-size: 4rem;
+    text-align: center;
+    margin: 15px 0;
+    display: block;
+    animation: bounce 1s ease infinite;
+    filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));
+  }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .q-text {
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    font-weight: 600;
+    line-height: 1.6;
+    text-align: center;
+    color: var(--text);
+    margin: 10px 0;
+  }
+
+  /* ===== MCQ Options ===== */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  @media (max-width: 500px) { .options-grid { grid-template-columns: 1fr; } }
+
+  .option-btn {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 16px;
+    padding: 16px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    transition: all 0.25s ease;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 60px;
+  }
+  .option-btn .opt-icon { font-size: 1.5rem; }
+  .option-btn:hover:not(:disabled) {
+    background: rgba(0,229,255,0.1);
+    border-color: var(--accent3);
+    transform: scale(1.03);
+    box-shadow: 0 0 20px rgba(0,229,255,0.2);
+  }
+  .option-btn.correct {
+    background: rgba(0,230,118,0.2);
+    border-color: var(--success);
+    color: var(--success);
+    box-shadow: 0 0 25px rgba(0,230,118,0.4);
+    animation: correctPop 0.5s ease;
+  }
+  .option-btn.wrong {
+    background: rgba(255,23,68,0.2);
+    border-color: var(--fail);
+    color: var(--fail);
+    animation: wrongShake 0.5s ease;
+  }
+  @keyframes correctPop { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  @keyframes wrongShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+  /* ===== DRAG & DROP ===== */
+  .drag-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+  }
+
+  .drag-item {
+    background: var(--card);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 10px 16px;
+    cursor: grab;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+  .drag-item:hover { border-color: var(--accent2); transform: scale(1.05); box-shadow: 0 0 15px rgba(255,215,0,0.3); }
+  .drag-item.dragging { opacity: 0.4; transform: scale(0.95); cursor: grabbing; }
+  .drag-item.placed { opacity: 0.3; pointer-events: none; }
+
+  .drop-zones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin: 10px 0;
+  }
+
+  .drop-zone {
+    min-height: 140px;
+    border-radius: 16px;
+    border: 3px dashed rgba(255,255,255,0.2);
+    padding: 12px;
+    transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .drop-zone.drag-over { border-color: var(--accent2); background: rgba(255,215,0,0.08); transform: scale(1.02); }
+  .drop-zone-label {
+    text-align: center;
+    font-weight: 800;
+    font-size: 1rem;
+    padding: 6px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+  }
+  .dz-input { border-color: var(--input-color); }
+  .dz-input .drop-zone-label { background: rgba(0,230,118,0.2); color: var(--input-color); }
+  .dz-output { border-color: var(--output-color); }
+  .dz-output .drop-zone-label { background: rgba(255,64,129,0.2); color: var(--output-color); }
+  .dz-storage { border-color: var(--storage-color); }
+  .dz-storage .drop-zone-label { background: rgba(255,171,64,0.2); color: var(--storage-color); }
+
+  .dropped-chip {
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    animation: popIn 0.3s ease;
+  }
+  @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .dropped-chip.wrong-zone { background: rgba(255,23,68,0.2); border: 1px solid var(--fail); }
+  .dropped-chip.right-zone { background: rgba(0,230,118,0.2); border: 1px solid var(--success); }
+
+  /* ===== MATCH GAME ===== */
+  .match-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  .match-col { display: flex; flex-direction: column; gap: 8px; }
+  .match-col-title {
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .match-item {
+    background: var(--card);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+    min-height: 52px;
+  }
+  .match-item:hover { border-color: var(--accent3); background: rgba(0,229,255,0.08); }
+  .match-item.selected { border-color: var(--accent2); background: rgba(255,215,0,0.15); transform: scale(1.03); box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+  .match-item.matched-correct { border-color: var(--success); background: rgba(0,230,118,0.2); pointer-events: none; }
+  .match-item.matched-wrong { border-color: var(--fail); background: rgba(255,23,68,0.2); animation: wrongShake 0.5s; }
+
+  /* ===== FILL BLANK ===== */
+  .fill-blank-input {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(0,229,255,0.4);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 1.1rem;
+    font-family: inherit;
+    color: var(--text);
+    width: 100%;
+    margin: 16px 0;
+    outline: none;
+    transition: all 0.3s;
+  }
+  .fill-blank-input:focus { border-color: var(--accent3); box-shadow: 0 0 20px rgba(0,229,255,0.2); }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 14px 28px;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary { background: linear-gradient(135deg, var(--accent3), var(--accent4)); color: white; box-shadow: 0 4px 20px rgba(0,229,255,0.3); }
+  .btn-primary:hover { box-shadow: 0 8px 30px rgba(0,229,255,0.5); }
+  .btn-success { background: linear-gradient(135deg, var(--success), #00c853); color: #001a00; box-shadow: 0 4px 20px rgba(0,230,118,0.3); }
+  .btn-danger { background: linear-gradient(135deg, var(--fail), #d50000); color: white; }
+  .btn-secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid rgba(255,255,255,0.2); }
+  .btn-home { background: linear-gradient(135deg, var(--accent1), #ff8c00); color: white; }
+  .btn-xl { font-size: 1.3rem; padding: 18px 40px; }
+
+  .btn-group { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+
+  /* ===== FEEDBACK ===== */
+  .feedback-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .feedback-card {
+    background: var(--card);
+    border-radius: 24px;
+    padding: 36px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 2px solid transparent;
+  }
+  .feedback-card.correct-card { border-color: var(--success); box-shadow: 0 0 40px rgba(0,230,118,0.3); }
+  .feedback-card.wrong-card { border-color: var(--fail); box-shadow: 0 0 40px rgba(255,23,68,0.3); }
+
+  .feedback-emoji { font-size: 5rem; display: block; margin-bottom: 12px; animation: bounce 0.5s ease infinite; }
+  .feedback-title { font-size: 1.8rem; font-weight: 900; margin-bottom: 8px; }
+  .feedback-title.green { color: var(--success); }
+  .feedback-title.red { color: var(--fail); }
+  .feedback-desc { font-size: 1rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px; }
+  .feedback-points { font-size: 1.4rem; font-weight: 800; color: var(--accent2); }
+
+  /* ===== RESULTS SCREEN ===== */
+  .results-container { text-align: center; max-width: 500px; width: 100%; }
+  .results-emoji { font-size: 6rem; display: block; margin: 20px 0; animation: pulse-glow 1.5s infinite; }
+  .results-title { font-size: 2.5rem; font-weight: 900; color: var(--accent2); margin-bottom: 10px; }
+  .results-score-big {
+    font-size: 4rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent3), var(--accent4));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 10px 0;
+  }
+  .results-stars { font-size: 3rem; margin: 10px 0; }
+  .results-breakdown {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    margin: 16px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .rb-item { text-align: center; }
+  .rb-item .val { font-size: 1.8rem; font-weight: 900; }
+  .rb-item .lbl { font-size: 0.75rem; color: var(--text-muted); }
+  .rb-correct { color: var(--success); }
+  .rb-wrong { color: var(--fail); }
+  .rb-time { color: var(--accent3); }
+
+  /* ===== COMBO DISPLAY ===== */
+  .combo-display {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #ff6b35, #ffd700);
+    color: #000;
+    font-size: 0.9rem;
+    font-weight: 900;
+    padding: 8px 14px;
+    border-radius: 20px;
+    z-index: 50;
+    animation: comboIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    display: none;
+  }
+  @keyframes comboIn { from { transform: scale(0) rotate(-10deg); } to { transform: scale(1) rotate(0deg); } }
+
+  /* ===== STUDY MODE ===== */
+  .study-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    width: 100%;
+    margin-top: 80px;
+    padding: 10px;
+  }
+
+  .study-card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    border: 2px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: all 0.3s;
+    animation: popIn 0.4s ease;
+  }
+  .study-card:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+  .study-card .sc-icon { font-size: 3rem; margin-bottom: 10px; display: block; }
+  .study-card .sc-name { font-size: 1rem; font-weight: 700; color: var(--accent2); margin-bottom: 4px; }
+  .study-card .sc-type {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    margin: 4px 0;
+  }
+  .study-card .sc-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; margin-top: 6px; }
+  .sc-input-tag { background: rgba(0,230,118,0.2); color: var(--input-color); }
+  .sc-output-tag { background: rgba(255,64,129,0.2); color: var(--output-color); }
+  .sc-storage-tag { background: rgba(255,171,64,0.2); color: var(--storage-color); }
+  .sc-cpu-tag { background: rgba(64,196,255,0.2); color: var(--cpu-color); }
+
+  /* ===== FLOATING SCORE ===== */
+  .float-score {
+    position: fixed;
+    font-size: 1.5rem;
+    font-weight: 900;
+    pointer-events: none;
+    z-index: 300;
+    animation: floatUp 1s ease forwards;
+  }
+  @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.5); } }
+
+  /* ===== LEVEL INDICATOR ===== */
+  .level-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(180,75,255,0.2);
+    border: 1px solid var(--accent4);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent4);
+  }
+
+  /* ===== SCROLL for study ===== */
+  #studyScreen { justify-content: flex-start; padding-top: 10px; }
+
+  .screen-title {
+    font-size: 1.8rem;
+    font-weight: 900;
+    text-align: center;
+    color: var(--accent2);
+    margin-top: 70px;
+    margin-bottom: 10px;
+  }
+
+  /* ===== QUIZ TYPE 4 - SEQUENCE ===== */
+  .sequence-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  .seq-btn {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+  }
+  .seq-btn:hover { border-color: var(--accent3); }
+  .seq-btn.selected-seq { border-color: var(--accent2); background: rgba(255,215,0,0.1); }
+  .seq-btn.correct { border-color: var(--success); background: rgba(0,230,118,0.15); color: var(--success); }
+  .seq-btn.wrong { border-color: var(--fail); background: rgba(255,23,68,0.15); color: var(--fail); }
+
+  /* ===== CELEBRATION ===== */
+  .confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    z-index: 999;
+    animation: confettiFall 2s ease forwards;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ===== CATEGORY SELECTOR ===== */
+  .cat-selector {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 10px 0;
+  }
+  .cat-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+  }
+  .cat-btn.active-input { border-color: var(--input-color); background: rgba(0,230,118,0.15); color: var(--input-color); }
+  .cat-btn.active-output { border-color: var(--output-color); background: rgba(255,64,129,0.15); color: var(--output-color); }
+  .cat-btn.active-storage { border-color: var(--storage-color); background: rgba(255,171,64,0.15); color: var(--storage-color); }
+  .cat-btn.active-all { border-color: var(--accent4); background: rgba(180,75,255,0.15); color: var(--accent4); }
+
+  .drag-check-btn { margin-top: 16px; }
+
+  .study-back {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 110;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- Particles -->
+<div id="particles"></div>
+
+<!-- Combo Display -->
+<div class="combo-display" id="comboDisplay">🔥 COMBO x<span id="comboCount">2</span></div>
+
+<!-- Float score -->
+<div class="float-score" id="floatScore" style="display:none;"></div>
+
+<!-- =============== HOME SCREEN =============== -->
+<div class="screen active" id="homeScreen">
+  <div style="text-align:center; max-width:700px;">
+    <div class="computer-hero">🖥️</div>
+    <div class="home-title">
+      <div class="line1">கணினியை இனங்காண்போம்!</div>
+      <div class="line2">அத்தியாயம் 2 - கற்போம் விளையாடலாம்!</div>
+    </div>
+    <p class="home-subtitle">ICT Grade 10 | Input • Output • Storage • CPU சாதனங்கள்</p>
+
+    <div class="mode-grid">
+      <div class="mode-card" onclick="startStudy()">
+        <span class="icon">📚</span>
+        <div class="title">படிக்கலாம்</div>
+        <div class="desc">சாதனங்களை படங்களுடன் புரிந்து கொள்வோம்</div>
+      </div>
+      <div class="mode-card" onclick="startQuiz('mcq')">
+        <span class="badge">⭐ பிரபலம்</span>
+        <span class="icon">🎯</span>
+        <div class="title">MCQ விளையாட்டு</div>
+        <div class="desc">சரியான விடையை தேர்வு செய்யுங்கள் • 60 விவிக்கள்</div>
+      </div>
+      <div class="mode-card" onclick="startQuiz('drag')">
+        <span class="icon">🎮</span>
+        <div class="title">இழு & போடு</div>
+        <div class="desc">சாதனங்களை சரியான வகையில் வகைப்படுத்துங்கள்</div>
+      </div>
+      <div class="mode-card" onclick="startQuiz('match')">
+        <span class="icon">🔗</span>
+        <div class="title">பொருத்து விளையாட்டு</div>
+        <div class="desc">சாதனத்தை வரையறையுடன் பொருத்துங்கள்</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== STUDY SCREEN =============== -->
+<div class="screen" id="studyScreen">
+  <div class="top-bar">
+    <button class="study-back" onclick="goHome()">← முகப்பு</button>
+    <div class="home-title" style="font-size:1.1rem; margin:0; color:var(--accent2);">📚 சாதனங்களை அறிவோம்</div>
+    <div class="cat-selector" id="catSelector">
+      <button class="cat-btn active-all" onclick="filterStudy('all',this)">🌟 அனைத்தும்</button>
+      <button class="cat-btn" onclick="filterStudy('input',this)">📥 உள்ளீடு</button>
+      <button class="cat-btn" onclick="filterStudy('output',this)">📤 வெளியீடு</button>
+      <button class="cat-btn" onclick="filterStudy('storage',this)">💾 சேமிப்பு</button>
+    </div>
+  </div>
+  <div class="study-grid" id="studyGrid"></div>
+</div>
+
+<!-- =============== GAME SCREEN =============== -->
+<div class="screen" id="gameScreen">
+  <div class="top-bar">
+    <div class="level-badge" id="levelBadge">🎮 நிலை 1</div>
+    <div class="score-display">⭐ <span id="scoreDisplay">0</span></div>
+    <div class="timer-display" id="timerDisplay">⏱ <span id="timerText">60</span>s</div>
+    <div class="lives-display" id="livesDisplay">❤️❤️❤️</div>
+  </div>
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
+
+  <div class="game-area" id="gameArea"></div>
+</div>
+
+<!-- =============== RESULTS SCREEN =============== -->
+<div class="screen" id="resultsScreen">
+  <div class="results-container">
+    <span class="results-emoji" id="resultsEmoji">🏆</span>
+    <div class="results-title" id="resultsTitle">அருமை!</div>
+    <div class="results-score-big" id="resultsBigScore">0</div>
+    <div class="results-stars" id="resultsStars">⭐⭐⭐</div>
+    <div class="results-breakdown">
+      <div class="rb-item">
+        <div class="val rb-correct" id="rbCorrect">0</div>
+        <div class="lbl">✅ சரியான</div>
+      </div>
+      <div class="rb-item">
+        <div class="val rb-wrong" id="rbWrong">0</div>
+        <div class="lbl">❌ தவறான</div>
+      </div>
+      <div class="rb-item">
+        <div class="val rb-time" id="rbTime">0s</div>
+        <div class="lbl">⏱ நேரம்</div>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="restartGame()">🔄 மீண்டும்</button>
+      <button class="btn btn-home" onclick="goHome()">🏠 முகப்பு</button>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback Overlay -->
+<div class="feedback-overlay" id="feedbackOverlay" style="display:none;">
+  <div class="feedback-card" id="feedbackCard">
+    <span class="feedback-emoji" id="feedbackEmoji">✅</span>
+    <div class="feedback-title" id="feedbackTitle">சரியான விடை!</div>
+    <div class="feedback-desc" id="feedbackDesc"></div>
+    <div class="feedback-points" id="feedbackPoints">+10 புள்ளிகள்</div>
+    <br>
+    <button class="btn btn-primary" onclick="nextQuestion()">அடுத்தது →</button>
+  </div>
+</div>
+
+<script>
+// ===================================================
+// DEVICE DATA (from chapter 2, pages 1-20)
+// ===================================================
+const devices = [
+  // INPUT DEVICES
+  { id:1, icon:'⌨️', name:'சாவிப்பலகை', nameEn:'Keyboard', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'கணினிக்குத் தரவுகளை உள்ளிடும் பிரசித்திபெற்ற உத்தி. 101/102 முதல் 108 வரையான சாவிகள் உள்ளன.',
+    uses:'தரவுகள் & கட்டளைகள் உள்ளிட' },
+  { id:2, icon:'🖱️', name:'சுட்டி', nameEn:'Mouse', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'கணினித் திரையில் தோன்றும் சுட்டுச் சாதனங்களில் சுட்டி பிரசித்திபெற்ற உதாரணமாகும்.',
+    uses:'கோப்புகள் திறக்க, சுட்டி இயக்க' },
+  { id:3, icon:'📷', name:'இலக்கமுறைக் கமரா', nameEn:'Digital Camera', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'ஒளிப்படக் காட்சியையும் ஒளியுருக் காட்சியையும் கணினிக்கு உள்ளிடுவதற்குப் பயன்படும்.',
+    uses:'படங்கள் & வீடியோ உள்ளிட' },
+  { id:4, icon:'📡', name:'வலைக் கமரா', nameEn:'Webcam', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'இணையத்தினூடாகக் கணினியுடன் இணைந்திருக்கும் ஒருவர் காட்சியை எடுப்பதற்கு பயன்படுகிறது.',
+    uses:'வீடியோ அழைப்பு, பதிவு செய்ய' },
+  { id:5, icon:'📺', name:'மூடிய சுற்றுத் தொலைக்காட்சிக் கமரா', nameEn:'CCTV', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'இட பாதுகாப்புக்கும் வீதிச் சட்டங்களைப் பாதுகாத்தலுக்கும் பெரிதும் பயன்படுத்தப்படுகிறது.',
+    uses:'பாதுகாப்பு கண்காணிப்பு' },
+  { id:6, icon:'🎮', name:'இயக்குபிடி', nameEn:'Joy Stick', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'கணினி திரை மீது நிலைக்காட்டியை இயங்கச் செய்யப் பயன்படுத்தப்படும் சுட்டுச் சாதனம்.',
+    uses:'கணினி விளையாட்டுகளுக்கு' },
+  { id:7, icon:'✒️', name:'ஒளிப்பேனா', nameEn:'Light Pen', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'கணினித் திரையில் வரைவதற்கு அல்லது எழுதுவதற்கு இவ்வுத்தி பயன்படுத்தப்படுகிறது.',
+    uses:'வரைதல், CAD வடிவமைப்பு' },
+  { id:8, icon:'📱', name:'தொடுதிரை', nameEn:'Touch Screen', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'புதிய கணினிகளிலும் செல்பேசிகளிலும் தொடுதிரை உள்ளீட்டுச் சாதனமாகவும் வெளியீட்டுச் சாதனமாகவும் தொழிற்படுகிறது.',
+    uses:'நேரடி தொடு உள்ளீடு' },
+  { id:9, icon:'🔍', name:'சமதளப்படுகை வருடி', nameEn:'Flatbed Scanner', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'ஒளிப் பிரதிப் பொறியாகும். லேசர் கதிர்களின் மூலம் பெறப்பட்டு இலக்கமுறைத் தரவுகளாக மாற்றப்படுகிறது.',
+    uses:'ஆவணங்கள் & படங்கள் ஸ்கான்' },
+  { id:10, icon:'🏷️', name:'பட்டைக் குறிமுறை வாசிப்பான்', nameEn:'Barcode Reader', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'பொருள்களில் காணப்படும் பட்டைக் குறிமுறை (Barcode) வாசிக்கப்படுகிறது.',
+    uses:'பொருட்கள் கட்டணம் செலுத்த' },
+  { id:11, icon:'🏦', name:'காந்த மை வரியுரு வாசிப்பான்', nameEn:'MICR', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'வங்கிகள் தொடர்பாகக் காணப்படுகிறது. காசோலையில் உள்ள செம்மையைச் சோதிப்பதற்கு பயன்படுகிறது.',
+    uses:'வங்கி காசோலை சரிபார்க்க' },
+  { id:12, icon:'📋', name:'ஒளியியல் வரியுரு கண்டறிதல்', nameEn:'OCR', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'பல பக்கங்களைக் கொண்ட ஆவணங்களை மிகக் குறிய காலத்தில் வருடிக் கணினிப்படுத்துவதற்கு பயன்படுகிறது.',
+    uses:'நூலகங்கள், அரசாங்க நிறுவனங்கள்' },
+  { id:13, icon:'📝', name:'ஒளியியல் குறி கண்டறிதல்', nameEn:'OMR', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'குறிகளை இனங்காணப் பயன்படுத்தப்படும் உள்ளீட்டு உத்தி. பரீட்சைப் பலவினுள் தெரிவு விடைத்தாள்களுக்கு பரவலாகப் பயன்படுகிறது.',
+    uses:'தேர்வு விடைத்தாள் சரிபார்க்க' },
+  { id:14, icon:'🏧', name:'தன்னியக்கக் காசளிப்பு எந்திரம்', nameEn:'ATM', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'வங்கித் தொழிலில் ஓர் அம்சமாகிய இவ்வுத்தியினால் கடனட்டையின் மூலம் கொடுக்கல் வாங்கல் எளிதாக்கப்பட்டுள்ளது.',
+    uses:'பண பரிவர்த்தனை' },
+  { id:15, icon:'🎤', name:'நுணுக்குப்பன்னி', nameEn:'Microphone', type:'input', typeLabel:'உள்ளீட்டுச் சாதனம்',
+    desc:'கணினிக்கு ஒலியை உள்ளிடுவதற்குப் பயன்படுத்தப்படும் துணையுறுப்பு நுணுக்குப்பன்னி ஆகும்.',
+    uses:'ஒலி பதிவு & குரல் கட்டளை' },
+
+  // OUTPUT DEVICES
+  { id:16, icon:'🖥️', name:'கணினித் திரை (CRT)', nameEn:'CRT Monitor', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'கதோட்டுக் கதிர்க் குழாயுடன் கூடிய திரை. தொடக்கத்திலிருந்து இன்று வரை வெளியீட்டு உத்தியாகப் பயன்படுத்தப்படும். ஆனால் அதிக அளவு மின்னை நுகர்கிறது.',
+    uses:'காட்சித் தகவல்கள் காண' },
+  { id:17, icon:'💻', name:'திரவப் பளிங்குக் காட்சி', nameEn:'LCD Monitor', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'சமதளக் காட்சித் தொழினுட்பவியலுக்கேற்ப உற்பத்தி செய்யப்பட்டுள்ளது. இரு வளைதகு முனைவாக்கிய மின்வாய்களுக்கிடையே ஒரு பளிங்குக் கரைசலைச் சேர்த்து இது உருவாக்கப்பட்டுள்ளது.',
+    uses:'மென்னகல் காட்சி' },
+  { id:18, icon:'📺', name:'ஒளிகாலும் இருவாயி', nameEn:'LED Monitor', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'LCD காட்சியில் பயன்படுத்தப்படும் பளிங்குக் கரைசலுக்குப் பதிலாக ஒளிகாலும் இருவாயியைப் பிரயோகித்து அமைக்கப்பட்டுள்ள LED கணினி திரை.',
+    uses:'சைகைகள், காட்சிப் பலகைகள்' },
+  { id:19, icon:'🎬', name:'பல்லூடக எறிவை', nameEn:'Multimedia Projector', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'ஒரே தடவையில் பலர் இரசிக்கத்தக்க அகன்ற திரை தகவல்களை வெளியிட வேண்டியபோது பயன்படுத்தப்படும் உத்தி.',
+    uses:'வகுப்பறை, கூட்டங்கள் நடத்த' },
+  { id:20, icon:'🖨️', name:'புள்ளி அமைவுரு அச்சுப்பொறி', nameEn:'Dot Matrix Printer', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'அச்சுப்பொறியின் தலை ஊசிபோன்ற கூர்களின் மூலம் மை உள்ள நாடாவில் படுகின்றமையால் சிறிய குற்று வடிவத்தில் தாளின் மீது எழுத்துகள் அச்சிடப்படுகின்றன.',
+    uses:'பல நகல்கள் தயாரிக்க, வங்கி' },
+  { id:21, icon:'🖨️', name:'வரி அச்சுப்பொறி', nameEn:'Line Printer', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'ஒரு தடவை ஒரு வரி வீதம் அச்சிடும் இப்பொறி மிகவும் விரைவான அச்சுப்பொறியாகும். இது ஒரு நிமிடத்திற்கு ஏறத்தாழ 3000 வரிகளை அச்சிடத்தக்கது.',
+    uses:'வேகமான நிறைய அச்சிட' },
+  { id:22, icon:'🖨️', name:'லேசர் அச்சுப்பொறி', nameEn:'Laser Printer', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'லேசர் அச்சுப்பொறியில் அச்சிடப்பட வேண்டிய பகுதி ஒரு லேசர்க் கற்றையின் மூலம் ஓர் ஏற்றிய உருளை மீது அனுப்பப்படுவதும் அதன் மீது ஒரு பொறியுறையில் (Cartridge) உள்ள உலர் மைப்பொடி படுவதனூடாக அச்சிடப்படுதலும் நடைபெறுகின்றன.',
+    uses:'தெளிவான நண்மதிப்பு அச்சு' },
+  { id:23, icon:'🖨️', name:'குமிழி / மைத் தாரை அச்சுப்பொறி', nameEn:'Inkjet Printer', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'இந்த அச்சுப்பொறியில் பொதியுறையில் ஒரு பாத்திரத்தில் வைக்கப்படும் திரவ நிலைமையில் உள்ள மை சிறிய துவாரங்களினூடாகத் தாளின் மீது பட்டு அச்சிடு நடைபெறுகிறது.',
+    uses:'நிற அச்சுகள், வீட்டு பயன்பாடு' },
+  { id:24, icon:'🖨️', name:'வெப்ப அச்சுப்பொறி', nameEn:'Thermal Printer', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'இந்த அச்சுப்பொறியில் வெப்பத்தைப் பயன்படுத்தித் தாளின் மீது அச்சிடு நடைபெறுகிறது. வர்தக வியாபாரம், தன்னியக்கக் காசளிப்புப் பொறி ஆகியவற்றில் பற்றுச்சீட்டுகளை வழங்குவதற்கும் சுட்டுத் துண்டுகளை அச்சிடுவதற்கும் இது அதிக அளவில் பயன்படுத்தப்படுகிறது.',
+    uses:'ATM, வர்தகக் கடைகள்' },
+  { id:25, icon:'📐', name:'வரைவி', nameEn:'Plotter', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'கணினி தொடர்பான திட்டமிடலில் (கட்டடக் கலை வடிவமைப்புகள், நகரத் திட்டமிடல்கள்) அதிக அளவில் பயன்படுத்தப்படும் இவ்வெளியீட்டு உத்தியின் மூலம் தாளின் மீது ஒரு பேனா அங்கும் இங்கும் செல்வதனால் திட்டம் வெளியிடப்படுகிறது.',
+    uses:'கட்டடங்கள், நகர வரைபடம்' },
+  { id:26, icon:'🔊', name:'ஒலிபெருக்கி', nameEn:'Speaker', type:'output', typeLabel:'வெளியீட்டுச் சாதனம்',
+    desc:'ஒலியை வெளியிடும் உத்திகளை ஒலிபெருக்கிகளாகக் காட்டலாம். பொதுவாக அல்லது தனிப்பட்ட விதத்தில் ஒலியை வெளியிடத்தக்கதாக ஒலிக்கும் உத்திகள் உள்ளன.',
+    uses:'இசை, ஒலி கேட்க' },
+
+  // STORAGE DEVICES
+  { id:27, icon:'💿', name:'வன்வட்டு', nameEn:'Hard Disk', type:'storage', typeLabel:'சேமிப்புச் சாதனம்',
+    desc:'தரவுகளையும் தகவல்களையும் தேக்கி வைக்கப் பயன்படுத்தும் பிரசித்திபெற்ற ஊடகமாகிய வன்வட்டு பொதுவாகக் கணினியினுள்ளே காணப்படும். வன்வட்டின் கொள்திறன் 250 GB இற்கும் 4 TB இற்குமிடையே இருக்கும்.',
+    uses:'இயக்க முறைமை, கோப்புகள் சேமிக்க' },
+  { id:28, icon:'📼', name:'காந்த நாடா', nameEn:'Magnetic Tape', type:'storage', typeLabel:'சேமிப்புச் சாதனம்',
+    desc:'குறைந்த கதியையும் உயர் கொள்திறனையும் கொண்டிருப்பதனால் தரவுகளையும் தகவல்களையும் பாதுகாத்து வைப்பதற்கு மாத்திரம் பயன்படுத்தப்படுகிறது.',
+    uses:'தரவு காப்பு சேமிப்பு' },
+  { id:29, icon:'💿', name:'இறுவட்டு (CD)', nameEn:'Compact Disc', type:'storage', typeLabel:'சேமிப்புச் சாதனம்',
+    desc:'CD-ROM: தரவுகளையும் தகவல்களையும் வாசிப்பதற்கு மாத்திரம் பயன்படுகிறது. CD-R: ஒரு தடவை மாத்திரம் எழுதலாம். CD-RW: பல தடவை எழுதலாம். அளவு 650 - 900 MB.',
+    uses:'இசை, மென்பொருள் சேமிக்க' },
+  { id:30, icon:'📀', name:'இலக்கமுறைப் பல்விதத் தட்டு (DVD)', nameEn:'DVD', type:'storage', typeLabel:'சேமிப்புச் சாதனம்',
+    desc:'DVD-ROM: வாசிப்பதற்கு மாத்திரம். DVD-R: ஒரு தடவை எழுதலாம். DVD-RW: பல தடவை எழுதலாம். அளவு 4.7 - 9.4 GB.',
+    uses:'திரைப்படம், பெரும் கோப்புகள்' },
+  { id:31, icon:'🔵', name:'புளூ - ரே', nameEn:'Blu-ray', type:'storage', typeLabel:'சேமிப்புச் சாதனம்',
+    desc:'அதிக அளவு தரவுகளைத் தேக்கி வைக்கத்தக்க பெரிய கொள்திறனைக் கொண்டது. தரவுகளை எழுவதற்கு நீல நிறமுள்ள லேசர்க் கதிர்கள் பயன்படுத்தப்படுகின்றன. 25 - 128 GB.',
+    uses:'HD வீடியோ, பெரும் சேமிப்பு' },
+  { id:32, icon:'🔌', name:'USB பளிச்சீட்டுச் செலுத்தி', nameEn:'USB Flash Drive', type:'storage', typeLabel:'சேமிப்புச் சாதனம்',
+    desc:'எளிதாக அங்கும் இங்கும் கொண்டு செல்லத் தக்கதாக இருப்பதனாலும் விரைவாகத் தரவுகளைக் காண்பதற்கான ஆற்றல் காரணமாகவும் USB பளிச்சீட்டுச் செலுத்தி மிகப் பிரசித்திபெற்ற துணைத் தேக்ககச் சாதனமாக உள்ளது.',
+    uses:'கோப்பு பரிமாற்றம், சேமிப்பு' },
+  { id:33, icon:'📱', name:'நினைவக அட்டை', nameEn:'Memory Card', type:'storage', typeLabel:'சேமிப்புச் சாதனம்',
+    desc:'USB பளிச்சீட்டு இயக்கியை ஒத்த தொழிற்பாட்டைக் கொண்டுள்ளது. ஆனால், கணினியுடன் தொடுப்பதற்கான தொழினுட்பம் மாறும் அதேவேளை அளவும் சிறிதாகும். இலக்கமுறைக் கமரா, செல்பேசி, கணினி விளையாட்டு ஆகியவற்றில் பயன்படுத்தப்படுகிறது.',
+    uses:'கமரா, செல்பேசி சேமிப்பு' },
+
+  // CPU
+  { id:34, icon:'🧠', name:'மைய முறைவழியாக்க அலகு', nameEn:'CPU', type:'cpu', typeLabel:'மைய முறைவழியாக்க அலகு',
+    desc:'கணினித் தொகுதியின் அடிப்படை அம்சம் மைய முறைவழியாக்க அலகாகும். கணினியின் மூளையாக அழைக்கப்படும் மைய முறைவழியாக்க அலகு கட்டளைகளுக்கேற்பத் தொழிற்படும் அதேவேளை பணிசெயல் முறைமையும் பிரயோக மென்பொருளும் தொழிற்படுகின்றன.',
+    uses:'எல்லா கணக்கீடு செயல்படுத்த' },
+];
+
+// ===================================================
+// MCQ QUESTIONS
+// ===================================================
+const mcqQuestions = [
+  { q: 'சாவிப்பலகை (Keyboard) என்பது எந்த வகை சாதனம்?', opts: ['📥 உள்ளீட்டுச் சாதனம்','📤 வெளியீட்டுச் சாதனம்','💾 சேமிப்புச் சாதனம்','🧠 செயலி'], ans: 0, cat:'input', icon:'⌨️', explain:'சாவிப்பலகை கணினிக்குத் தரவுகளை உள்ளிடும் பிரசித்திபெற்ற உத்தி ஆகும்.' },
+  { q: 'வன்வட்டு (Hard Disk) எந்த வகை சாதனம்?', opts: ['📥 உள்ளீட்டு','📤 வெளியீட்டு','💾 சேமிப்பு','🧠 செயலி'], ans: 2, cat:'storage', icon:'💿', explain:'வன்வட்டு தரவுகளையும் தகவல்களையும் நிலையாக சேமிக்கும் சாதனம்.' },
+  { q: 'லேசர் அச்சுப்பொறி (Laser Printer) என்பது?', opts: ['📥 உள்ளீட்டு','📤 வெளியீட்டு','💾 சேமிப்பு','🧠 CPU'], ans: 1, cat:'output', icon:'🖨️', explain:'லேசர் அச்சுப்பொறி தகவல்களை காகிதத்தில் அச்சிடும் வெளியீட்டு சாதனம்.' },
+  { q: 'USB Flash Drive எந்த வகை சாதனம்?', opts: ['📥 உள்ளீட்டு','📤 வெளியீட்டு','💾 சேமிப்பு','🧠 CPU'], ans: 2, cat:'storage', icon:'🔌', explain:'USB Flash Drive தரவுகளை சேமித்து வைக்கும் திண்ம நிலைமைச் சாதனம்.' },
+  { q: 'OMR என்பதன் விரிவாக்கம் என்ன?', opts: ['Optical Mark Recognition','Original Mark Reader','Optical Memory Reader','Output Mark Recognition'], ans: 0, cat:'input', icon:'📝', explain:'OMR = Optical Mark Recognition - குறிகளை இனங்காணப் பயன்படுத்தப்படும் உள்ளீட்டு உத்தி.' },
+  { q: 'கணினியின் மூளை என்று அழைக்கப்படுவது?', opts: ['RAM','ROM','CPU','Hard Disk'], ans: 2, cat:'cpu', icon:'🧠', explain:'மைய முறைவழியாக்க அலகு (CPU) கணினியின் மூளையாக அழைக்கப்படும்.' },
+  { q: 'CD-ROM இல் தரவுகளை?', opts: ['மட்டும் எழுதலாம்','மட்டும் படிக்கலாம்','படித்தும் எழுதலாம்','அழிக்கலாம்'], ans: 1, cat:'storage', icon:'💿', explain:'CD-ROM = Compact Disc Read Only Memory - படிக்க மட்டுமே முடியும்.' },
+  { q: 'MICR என்னும் சாதனம் எங்கு பயன்படுத்தப்படுகிறது?', opts: ['பள்ளிகளில்','வங்கிகளில்','திரையரங்குகளில்','விளையாட்டில்'], ans: 1, cat:'input', icon:'🏦', explain:'MICR (Magnetic Ink Character Reader) வங்கிகளில் காசோலை சரிபார்க்க பயன்படுகிறது.' },
+  { q: 'Dot Matrix Printer எந்த வகை அச்சுப்பொறி?', opts: ['அழுத்தாத அச்சுப்பொறி','அழுத்தும் அச்சுப்பொறி','லேசர் அச்சுப்பொறி','வெப்ப அச்சுப்பொறி'], ans: 1, cat:'output', icon:'🖨️', explain:'Dot Matrix Printer அழுத்தும் (Impact) அச்சுப்பொறி வகையில் சேர்க்கப்படுகிறது.' },
+  { q: 'Webcam என்னும் சாதனம் எதற்கு பயன்படுகிறது?', opts: ['அச்சிட','ஒலி கேட்க','வீடியோ பதிவு செய்ய','தரவு சேமிக்க'], ans: 2, cat:'input', icon:'📡', explain:'வலைக் கமரா இணையத்தினூடாக காட்சியை எடுப்பதற்கு அல்லது ஒளியுருக் காட்சியைப் பெறுவதற்கு பயன்படுகிறது.' },
+  { q: 'பல்லூடக எறிவை (Multimedia Projector) எந்த வகை?', opts: ['உள்ளீடு','வெளியீடு','சேமிப்பு','CPU'], ans: 1, cat:'output', icon:'🎬', explain:'பல்லூடக எறிவை ஒரே தடவையில் பலர் இரசிக்கத்தக்க அகன்ற திரை தகவல்களை வெளியிடும் வெளியீட்டு சாதனம்.' },
+  { q: 'DVD யின் சேமிப்பு கொள்திறன் எத்தனை GB?', opts: ['1-2 GB','4.7-9.4 GB','25-128 GB','650-900 MB'], ans: 1, cat:'storage', icon:'📀', explain:'DVD யின் சேமிப்பு கொள்திறன் 4.7 முதல் 9.4 GB வரை இருக்கும்.' },
+  { q: 'Blu-ray வட்டில் தரவு எழுவதற்கு எந்த நிறத்திலான லேசர் பயன்படுகிறது?', opts: ['சிவப்பு','பச்சை','நீலம்','மஞ்சள்'], ans: 2, cat:'storage', icon:'🔵', explain:'Blu-ray வட்டில் தரவுகளை எழுவதற்கு நீல நிறமுள்ள லேசர்க் கதிர்கள் பயன்படுத்தப்படுகின்றன.' },
+  { q: 'Touch Screen என்னும் சாதனம்?', opts: ['மட்டும் உள்ளீடு','மட்டும் வெளியீடு','உள்ளீடும் வெளியீடும்','சேமிப்பு'], ans: 2, cat:'input', icon:'📱', explain:'தொடுதிரை உள்ளீட்டுச் சாதனமாகவும் வெளியீட்டுச் சாதனமாகவும் தொழிற்படுகிறது.' },
+  { q: 'OMR சாதனம் எதற்குப் பரவலாகப் பயன்படுகிறது?', opts: ['வங்கி','தேர்வு விடைத்தாள்','அச்சிட','படம் எடுக்க'], ans: 1, cat:'input', icon:'📝', explain:'OMR பரீட்சைப் பலவினுள் தெரிவு விடைத்தாள்களுக்குப் புள்ளியிடுதல் ஆகியவற்றுக்கு பரவலாகப் பயன்படுத்தப்படும்.' },
+  { q: 'Plotter (வரைவி) எந்த வகை சாதனம்?', opts: ['உள்ளீடு','வெளியீடு','சேமிப்பு','CPU'], ans: 1, cat:'output', icon:'📐', explain:'வரைவி கட்டடக் கலை வடிவமைப்புகள், நகரத் திட்டமிடல்களுக்கு பயன்படும் வெளியீட்டு சாதனம்.' },
+  { q: 'Memory Card எங்கு பொதுவாகப் பயன்படுகிறது?', opts: ['மேசைக் கணினி','இலக்கமுறைக் கமரா','அச்சுப்பொறி','வரைவி'], ans: 1, cat:'storage', icon:'📱', explain:'நினைவக அட்டை இலக்கமுறைக் கமரா, செல்பேசி, கணினி விளையாட்டு ஆகியவற்றில் பயன்படுத்தப்படுகிறது.' },
+  { q: 'கணினியின் கதி அளக்கப்படும் அலகு எது?', opts: ['Bytes','MHz or GHz','Pixels','Watts'], ans: 1, cat:'cpu', icon:'🧠', explain:'கணினியின் கதி மெகாஹெர்ட்ஸ் (MHz) அல்லது கிகாஹெர்ட்ஸ் (GHz) என்னும் அலகில் அளக்கப்படுகிறது.' },
+  { q: 'Flatbed Scanner என்பது?', opts: ['வெளியீடு','உள்ளீடு','சேமிப்பு','CPU'], ans: 1, cat:'input', icon:'🔍', explain:'சமதளப்படுகை வருடி ஒளிப் பிரதிப் பொறியாகும். இது சமமாகத் தொழிற்படும் உள்ளீட்டு உத்தி.' },
+  { q: 'Thermal Printer எங்கு அதிகமாகப் பயன்படுகிறது?', opts: ['பள்ளி','ATM & கடைகள்','நூலகம்','மருத்துவமனை'], ans: 1, cat:'output', icon:'🖨️', explain:'வெப்ப அச்சுப்பொறி வர்தக வியாபாரம், ATM பொறிகளில் பற்றுச்சீட்டுகளை வழங்குவதற்கு அதிக அளவில் பயன்படுத்தப்படுகிறது.' },
+];
+
+// Match questions
+const matchQuestions = [
+  {
+    title: 'சாதனத்தை வரையறையுடன் பொருத்துங்கள்',
+    left: [
+      { id:'m1', text:'⌨️ சாவிப்பலகை', type:'device' },
+      { id:'m2', text:'🖨️ லேசர் அச்சுப்பொறி', type:'device' },
+      { id:'m3', text:'💿 வன்வட்டு', type:'device' },
+      { id:'m4', text:'🧠 CPU', type:'device' },
+    ],
+    right: [
+      { id:'r1', text:'கட்டளைகளை செயல்படுத்தும் மூளை' },
+      { id:'r2', text:'தரவு நிரந்தர சேமிப்பகம்' },
+      { id:'r3', text:'தரவுகள் உள்ளிடும் பிரசித்தி சாதனம்' },
+      { id:'r4', text:'தெளிவான உலர் மைப்பொடி அச்சிடும்' },
+    ],
+    pairs: { m1:'r3', m2:'r4', m3:'r2', m4:'r1' }
+  },
+  {
+    title: 'சாதனத்தை வகையுடன் பொருத்துங்கள்',
+    left: [
+      { id:'m1', text:'📝 OMR', type:'device' },
+      { id:'m2', text:'🔵 Blu-ray', type:'device' },
+      { id:'m3', text:'🖥️ CRT திரை', type:'device' },
+      { id:'m4', text:'🎤 மைக்ரோஃபோன்', type:'device' },
+    ],
+    right: [
+      { id:'r1', text:'📤 வெளியீட்டுச் சாதனம்' },
+      { id:'r2', text:'💾 சேமிப்புச் சாதனம்' },
+      { id:'r3', text:'📥 ஒலி உள்ளீட்டு சாதனம்' },
+      { id:'r4', text:'📥 குறி கண்டறியும் சாதனம்' },
+    ],
+    pairs: { m1:'r4', m2:'r2', m3:'r1', m4:'r3' }
+  }
+];
+
+// Drag & Drop sets
+const dragSets = [
+  {
+    items: [
+      { id:'d1', icon:'⌨️', name:'சாவிப்பலகை', correctZone:'input' },
+      { id:'d2', icon:'🖥️', name:'கணினித் திரை', correctZone:'output' },
+      { id:'d3', icon:'💿', name:'வன்வட்டு', correctZone:'storage' },
+      { id:'d4', icon:'🖨️', name:'அச்சுப்பொறி', correctZone:'output' },
+      { id:'d5', icon:'🔌', name:'USB சாதனம்', correctZone:'storage' },
+      { id:'d6', icon:'🎤', name:'மைக்ரோஃபோன்', correctZone:'input' },
+    ]
+  },
+  {
+    items: [
+      { id:'d1', icon:'🖱️', name:'சுட்டி', correctZone:'input' },
+      { id:'d2', icon:'🔊', name:'ஒலிபெருக்கி', correctZone:'output' },
+      { id:'d3', icon:'📀', name:'DVD', correctZone:'storage' },
+      { id:'d4', icon:'📷', name:'டிஜிட்டல் கமரா', correctZone:'input' },
+      { id:'d5', icon:'🎬', name:'எறிவை', correctZone:'output' },
+      { id:'d6', icon:'📱', name:'நினைவக அட்டை', correctZone:'storage' },
+    ]
+  }
+];
+
+// ===================================================
+// GAME STATE
+// ===================================================
+let gameMode = 'mcq';
+let score = 0;
+let lives = 3;
+let combo = 0;
+let timeLeft = 60;
+let timerInterval = null;
+let currentQ = 0;
+let totalQ = 0;
+let correct = 0;
+let wrong = 0;
+let timeUsed = 0;
+let qList = [];
+let dragCurrentSet = 0;
+let matchState = { selectedLeft: null, selectedRight: null, matched: {} };
+let studyFilter = 'all';
+
+// ===================================================
+// PARTICLES
+// ===================================================
+function createParticles() {
+  const colors = ['#00e5ff','#b44bff','#ffd700','#ff6b35','#00e676','#ff4081'];
+  for (let i = 0; i < 25; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDuration = (5 + Math.random() * 10) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
+    document.getElementById('particles').appendChild(p);
+  }
+}
+
+// ===================================================
+// AUDIO (Web Audio API beeps)
+// ===================================================
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playBeep(freq, dur, type='sine', vol=0.3) {
+  try {
+    const ctx = getAudio();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    osc.type = type;
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + dur);
+  } catch(e){}
+}
+function playCorrect() {
+  playBeep(523, 0.1); setTimeout(() => playBeep(659, 0.1), 100); setTimeout(() => playBeep(784, 0.2), 200);
+}
+function playWrong() {
+  playBeep(300, 0.15, 'sawtooth'); setTimeout(() => playBeep(200, 0.2, 'sawtooth'), 150);
+}
+function playTick() { playBeep(800, 0.05, 'square', 0.1); }
+function playLevelUp() {
+  [523,587,659,784,1047].forEach((f,i) => setTimeout(() => playBeep(f, 0.15), i*80));
+}
+function playGameOver() {
+  [400,350,300,200].forEach((f,i) => setTimeout(() => playBeep(f, 0.2, 'sawtooth'), i*150));
+}
+
+// ===================================================
+// NAVIGATION
+// ===================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+  clearInterval(timerInterval);
+  showScreen('homeScreen');
+}
+
+function startStudy() {
+  showScreen('studyScreen');
+  renderStudyGrid('all');
+}
+
+function filterStudy(type, btn) {
+  studyFilter = type;
+  document.querySelectorAll('#catSelector .cat-btn').forEach(b => {
+    b.className = 'cat-btn';
+  });
+  btn.className = 'cat-btn active-' + (type === 'all' ? 'all' : type);
+  renderStudyGrid(type);
+}
+
+function renderStudyGrid(filter) {
+  const grid = document.getElementById('studyGrid');
+  grid.innerHTML = '';
+  const filtered = filter === 'all' ? devices : devices.filter(d => d.type === filter);
+  filtered.forEach((d, i) => {
+    const card = document.createElement('div');
+    card.className = 'study-card';
+    card.style.animationDelay = (i * 0.05) + 's';
+    const typeColors = { input:'sc-input-tag', output:'sc-output-tag', storage:'sc-storage-tag', cpu:'sc-cpu-tag' };
+    card.innerHTML = `
+      <span class="sc-icon">${d.icon}</span>
+      <div class="sc-name">${d.name}</div>
+      <div class="sc-type ${typeColors[d.type]}">${d.typeLabel}</div>
+      <div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">${d.nameEn}</div>
+      <div class="sc-desc">${d.desc}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ===================================================
+// GAME START
+// ===================================================
+function startQuiz(mode) {
+  gameMode = mode;
+  score = 0; lives = 3; combo = 0; currentQ = 0; correct = 0; wrong = 0; timeUsed = 0;
+  updateScoreDisplay();
+  updateLivesDisplay();
+  document.getElementById('comboDisplay').style.display = 'none';
+
+  if (mode === 'mcq') {
+    qList = [...mcqQuestions].sort(() => Math.random() - 0.5).slice(0, 15);
+    totalQ = qList.length;
+    timeLeft = 60;
+  } else if (mode === 'drag') {
+    dragCurrentSet = 0;
+    totalQ = dragSets.length;
+    timeLeft = 90;
+  } else if (mode === 'match') {
+    qList = [...matchQuestions].sort(() => Math.random() - 0.5);
+    currentQ = 0;
+    totalQ = qList.length;
+    timeLeft = 90;
+  }
+
+  showScreen('gameScreen');
+  startTimer();
+  renderQuestion();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  const timerEl = document.getElementById('timerText');
+  const timerDisp = document.getElementById('timerDisplay');
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    timeUsed++;
+    timerEl.textContent = timeLeft;
+    timerDisp.className = timeLeft <= 10 ? 'timer-display urgent' : 'timer-display';
+    if (timeLeft <= 10 && timeLeft > 0) playTick();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      playGameOver();
+      showResults();
+    }
+  }, 1000);
+}
+
+// ===================================================
+// RENDER QUESTION
+// ===================================================
+function renderQuestion() {
+  const area = document.getElementById('gameArea');
+  updateProgress();
+
+  if (gameMode === 'mcq') {
+    if (currentQ >= qList.length) { showResults(); return; }
+    renderMCQ(area, qList[currentQ]);
+  } else if (gameMode === 'drag') {
+    if (dragCurrentSet >= dragSets.length) { showResults(); return; }
+    renderDrag(area, dragSets[dragCurrentSet]);
+  } else if (gameMode === 'match') {
+    if (currentQ >= qList.length) { showResults(); return; }
+    renderMatch(area, qList[currentQ]);
+  }
+
+  document.getElementById('levelBadge').textContent = `🎮 கேள்வி ${currentQ + 1}/${totalQ}`;
+}
+
+function renderMCQ(area, q) {
+  const catColors = { input:'q-cat-input', output:'q-cat-output', storage:'q-cat-storage', cpu:'q-cat-cpu', general:'q-cat-general' };
+  const shuffled = q.opts.map((o, i) => ({ text: o, origIdx: i })).sort(() => Math.random() - 0.5);
+
+  area.innerHTML = `
+    <div class="question-card">
+      <div class="q-number">கேள்வி ${currentQ + 1} / ${totalQ}</div>
+      <span class="q-device-icon">${q.icon || '❓'}</span>
+      <div class="q-text">${q.q}</div>
+    </div>
+    <div class="options-grid">
+      ${shuffled.map((o, i) => `
+        <button class="option-btn" onclick="checkMCQ(this, ${o.origIdx}, ${q.ans})" id="optBtn${i}">
+          ${o.text}
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function checkMCQ(btn, chosen, correct_ans) {
+  const allBtns = document.querySelectorAll('.option-btn');
+  allBtns.forEach(b => b.disabled = true);
+
+  if (chosen === correct_ans) {
+    btn.classList.add('correct');
+    combo++;
+    const pts = 10 + (combo > 1 ? (combo - 1) * 5 : 0);
+    score += pts;
+    correct++;
+    playCorrect();
+    showFloatScore(`+${pts}`, btn);
+    showCombo();
+    showFeedback(true, qList[currentQ].explain, pts);
+  } else {
+    btn.classList.add('wrong');
+    allBtns.forEach(b => {
+      // find the correct one
+      const origIdx = parseInt(b.id.replace('optBtn',''));
+    });
+    combo = 0;
+    lives--;
+    wrong++;
+    playWrong();
+    updateLivesDisplay();
+    if (lives <= 0) {
+      setTimeout(() => { clearInterval(timerInterval); showResults(); }, 1200);
+      return;
+    }
+    showFeedback(false, qList[currentQ].explain, 0);
+  }
+  updateScoreDisplay();
+  currentQ++;
+}
+
+function renderDrag(area, set) {
+  const items = [...set.items].sort(() => Math.random() - 0.5);
+  area.innerHTML = `
+    <div class="question-card">
+      <div class="q-number">இழு & போடு விளையாட்டு</div>
+      <div class="q-text">🎯 சாதனங்களை சரியான வகையில் இழுத்துப் போடுங்கள்!</div>
+    </div>
+    <div class="drag-area" id="dragItemsArea">
+      ${items.map(item => `
+        <div class="drag-item" 
+          draggable="true"
+          id="drag_${item.id}"
+          data-id="${item.id}"
+          data-correct="${item.correctZone}"
+          ondragstart="dragStart(event)"
+          ondragend="dragEnd(event)">
+          ${item.icon} ${item.name}
+        </div>
+      `).join('')}
+    </div>
+    <div class="drop-zones">
+      <div class="drop-zone dz-input" id="zone_input"
+        ondragover="dragOver(event)"
+        ondrop="drop(event)"
+        ondragleave="dragLeave(event)"
+        data-zone="input">
+        <div class="drop-zone-label">📥 உள்ளீட்டு சாதனங்கள்</div>
+      </div>
+      <div class="drop-zone dz-output" id="zone_output"
+        ondragover="dragOver(event)"
+        ondrop="drop(event)"
+        ondragleave="dragLeave(event)"
+        data-zone="output">
+        <div class="drop-zone-label">📤 வெளியீட்டு சாதனங்கள்</div>
+      </div>
+      <div class="drop-zone dz-storage" id="zone_storage"
+        ondragover="dragOver(event)"
+        ondrop="drop(event)"
+        ondragleave="dragLeave(event)"
+        data-zone="storage">
+        <div class="drop-zone-label">💾 சேமிப்பு சாதனங்கள்</div>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-success drag-check-btn" onclick="checkDrag()">✅ சரிபார்க்க</button>
+    </div>
+  `;
+  
+  // Mobile touch support
+  setupTouchDrag();
+}
+
+let draggingId = null;
+function dragStart(e) {
+  draggingId = e.target.dataset.id;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dragEnd(e) { e.target.classList.remove('dragging'); }
+function dragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function dragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function drop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const zone = e.currentTarget.dataset.zone;
+  const dragEl = document.getElementById('drag_' + draggingId);
+  if (!dragEl) return;
+  dragEl.classList.add('placed');
+
+  const chip = document.createElement('div');
+  chip.className = 'dropped-chip';
+  chip.dataset.id = draggingId;
+  chip.dataset.zone = zone;
+  chip.innerHTML = dragEl.innerHTML;
+  e.currentTarget.appendChild(chip);
+}
+
+function setupTouchDrag() {
+  // Simple touch drag for mobile
+  let touchItem = null;
+  let ghost = null;
+  document.querySelectorAll('.drag-item').forEach(item => {
+    item.addEventListener('touchstart', (e) => {
+      touchItem = item;
+      item.style.opacity = '0.5';
+      ghost = item.cloneNode(true);
+      ghost.style.cssText = `position:fixed;opacity:0.8;pointer-events:none;z-index:999;background:var(--card);border:2px solid var(--accent2);border-radius:12px;padding:10px 16px;font-size:0.9rem;font-weight:600;color:var(--text);`;
+      document.body.appendChild(ghost);
+    }, { passive: true });
+    item.addEventListener('touchmove', (e) => {
+      if (!ghost) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      ghost.style.left = (t.clientX - 50) + 'px';
+      ghost.style.top = (t.clientY - 30) + 'px';
+    }, { passive: false });
+    item.addEventListener('touchend', (e) => {
+      if (ghost) { ghost.remove(); ghost = null; }
+      if (!touchItem) return;
+      touchItem.style.opacity = '';
+      const t = e.changedTouches[0];
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      const zone = el ? el.closest('.drop-zone') : null;
+      if (zone) {
+        touchItem.classList.add('placed');
+        const chip = document.createElement('div');
+        chip.className = 'dropped-chip';
+        chip.dataset.id = touchItem.dataset.id;
+        chip.dataset.zone = zone.dataset.zone;
+        chip.innerHTML = touchItem.innerHTML;
+        zone.appendChild(chip);
+      }
+      touchItem = null;
+    });
+  });
+}
+
+function checkDrag() {
+  const chips = document.querySelectorAll('.dropped-chip');
+  let pts = 0;
+  let correctCount = 0;
+  chips.forEach(chip => {
+    const id = chip.dataset.id;
+    const zone = chip.dataset.zone;
+    const original = document.getElementById('drag_' + id);
+    const correctZone = original ? original.dataset.correct : null;
+    if (zone === correctZone) {
+      chip.classList.add('right-zone');
+      chip.innerHTML += ' ✅';
+      correctCount++;
+      pts += 15;
+    } else {
+      chip.classList.add('wrong-zone');
+      chip.innerHTML += ' ❌';
+    }
+  });
+  score += pts;
+  correct += correctCount;
+  wrong += (chips.length - correctCount);
+  updateScoreDisplay();
+  playCorrect();
+  showFloatScore(`+${pts}`, document.querySelector('.drag-check-btn'));
+
+  setTimeout(() => {
+    dragCurrentSet++;
+    currentQ++;
+    renderQuestion();
+  }, 2000);
+}
+
+function renderMatch(area, q) {
+  matchState = { selectedLeft: null, selectedRight: null, matched: {} };
+  const leftItems = [...q.left].sort(() => Math.random() - 0.5);
+  const rightItems = [...q.right].sort(() => Math.random() - 0.5);
+
+  area.innerHTML = `
+    <div class="question-card">
+      <div class="q-number">பொருத்து விளையாட்டு</div>
+      <div class="q-text">🔗 ${q.title}</div>
+    </div>
+    <div class="match-container">
+      <div class="match-col">
+        <div class="match-col-title">சாதனம்</div>
+        ${leftItems.map(item => `
+          <div class="match-item" id="left_${item.id}" onclick="selectMatchLeft('${item.id}')">${item.text}</div>
+        `).join('')}
+      </div>
+      <div class="match-col">
+        <div class="match-col-title">வரையறை</div>
+        ${rightItems.map(item => `
+          <div class="match-item" id="right_${item.id}" onclick="selectMatchRight('${item.id}')">${item.text}</div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function selectMatchLeft(id) {
+  if (matchState.matched[id]) return;
+  document.querySelectorAll('.match-item').forEach(el => {
+    if (el.id.startsWith('left_') && !el.classList.contains('matched-correct')) el.classList.remove('selected');
+  });
+  matchState.selectedLeft = id;
+  document.getElementById('left_' + id).classList.add('selected');
+  tryMatch();
+}
+
+function selectMatchRight(id) {
+  if (Object.values(matchState.matched).includes(id)) return;
+  document.querySelectorAll('.match-item').forEach(el => {
+    if (el.id.startsWith('right_') && !el.classList.contains('matched-correct')) el.classList.remove('selected');
+  });
+  matchState.selectedRight = id;
+  document.getElementById('right_' + id).classList.add('selected');
+  tryMatch();
+}
+
+function tryMatch() {
+  if (!matchState.selectedLeft || !matchState.selectedRight) return;
+  const L = matchState.selectedLeft;
+  const R = matchState.selectedRight;
+  const correct_pair = qList[currentQ].pairs[L];
+
+  const lEl = document.getElementById('left_' + L);
+  const rEl = document.getElementById('right_' + R);
+
+  if (correct_pair === R) {
+    lEl.classList.remove('selected'); lEl.classList.add('matched-correct');
+    rEl.classList.remove('selected'); rEl.classList.add('matched-correct');
+    matchState.matched[L] = R;
+    score += 15; correct++;
+    playCorrect();
+    showFloatScore('+15', lEl);
+    updateScoreDisplay();
+
+    // Check if all matched
+    if (Object.keys(matchState.matched).length === qList[currentQ].left.length) {
+      playLevelUp();
+      setTimeout(() => { currentQ++; renderQuestion(); }, 1000);
+    }
+  } else {
+    lEl.classList.add('matched-wrong'); rEl.classList.add('matched-wrong');
+    playWrong();
+    wrong++; combo = 0; lives--;
+    updateLivesDisplay();
+    setTimeout(() => {
+      lEl.classList.remove('matched-wrong','selected');
+      rEl.classList.remove('matched-wrong','selected');
+    }, 600);
+    if (lives <= 0) { clearInterval(timerInterval); setTimeout(showResults, 500); return; }
+  }
+  matchState.selectedLeft = null;
+  matchState.selectedRight = null;
+}
+
+// ===================================================
+// FEEDBACK
+// ===================================================
+function showFeedback(isCorrect, explain, pts) {
+  const overlay = document.getElementById('feedbackOverlay');
+  const card = document.getElementById('feedbackCard');
+  const emoji = document.getElementById('feedbackEmoji');
+  const title = document.getElementById('feedbackTitle');
+  const desc = document.getElementById('feedbackDesc');
+  const points = document.getElementById('feedbackPoints');
+
+  if (isCorrect) {
+    const msgs = ['🎉 சரியான விடை!', '🌟 அருமை!', '👏 மிகவும் நல்லது!', '💯 சூப்பர்!', '🏆 வெற்றி!'];
+    emoji.textContent = ['🎉','✅','⭐','🌟','💯'][Math.floor(Math.random()*5)];
+    title.textContent = msgs[Math.floor(Math.random()*msgs.length)];
+    title.className = 'feedback-title green';
+    card.className = 'feedback-card correct-card';
+    points.textContent = `+${pts} புள்ளிகள்${combo > 1 ? ` 🔥 x${combo} Combo!` : ''}`;
+  } else {
+    emoji.textContent = ['😢','💔','❌','😅'][Math.floor(Math.random()*4)];
+    title.textContent = ['தவறான விடை!', 'மீண்டும் முயற்சி!', 'கவலைப்படாதே!'][Math.floor(Math.random()*3)];
+    title.className = 'feedback-title red';
+    card.className = 'feedback-card wrong-card';
+    points.textContent = `-1 உயிர் மீதம்: ${'❤️'.repeat(lives)}`;
+  }
+  desc.textContent = explain || '';
+  overlay.style.display = 'flex';
+}
+
+function nextQuestion() {
+  document.getElementById('feedbackOverlay').style.display = 'none';
+  renderQuestion();
+}
+
+function showFloatScore(text, anchor) {
+  const el = document.getElementById('floatScore');
+  el.textContent = text;
+  el.style.color = text.startsWith('+') ? '#00e676' : '#ff1744';
+  if (anchor) {
+    const rect = anchor.getBoundingClientRect();
+    el.style.left = rect.left + 'px';
+    el.style.top = rect.top + 'px';
+  } else {
+    el.style.left = '50%';
+    el.style.top = '40%';
+  }
+  el.style.display = 'block';
+  el.style.animation = 'none';
+  el.offsetHeight; // reflow
+  el.style.animation = 'floatUp 1s ease forwards';
+  setTimeout(() => { el.style.display = 'none'; }, 1000);
+}
+
+function showCombo() {
+  if (combo < 2) { document.getElementById('comboDisplay').style.display = 'none'; return; }
+  const el = document.getElementById('comboDisplay');
+  document.getElementById('comboCount').textContent = combo;
+  el.style.display = 'block';
+  el.style.animation = 'none';
+  el.offsetHeight;
+  el.style.animation = 'comboIn 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+  setTimeout(() => { if (combo < 2) el.style.display = 'none'; }, 2000);
+}
+
+// ===================================================
+// UI HELPERS
+// ===================================================
+function updateScoreDisplay() {
+  document.getElementById('scoreDisplay').textContent = score;
+}
+
+function updateLivesDisplay() {
+  const hearts = '❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(Math.max(0, 3 - lives));
+  document.getElementById('livesDisplay').textContent = hearts;
+}
+
+function updateProgress() {
+  const pct = totalQ > 0 ? (currentQ / totalQ) * 100 : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+// ===================================================
+// RESULTS
+// ===================================================
+function showResults() {
+  clearInterval(timerInterval);
+  document.getElementById('feedbackOverlay').style.display = 'none';
+
+  const pct = totalQ > 0 ? (correct / totalQ) * 100 : 0;
+  let emoji = '😢', title = 'மீண்டும் முயற்சி செய்யுங்கள்!', stars = '⭐';
+  if (pct >= 80) { emoji = '🏆'; title = 'சாம்பியன்! அற்புதம்!'; stars = '⭐⭐⭐'; playLevelUp(); launchConfetti(); }
+  else if (pct >= 60) { emoji = '🌟'; title = 'மிகவும் நல்லது!'; stars = '⭐⭐'; playCorrect(); }
+  else if (pct >= 40) { emoji = '👍'; title = 'நல்ல முயற்சி!'; stars = '⭐'; }
+  else { emoji = '💪'; title = 'மேலும் படியுங்கள்!'; stars = ''; playGameOver(); }
+
+  document.getElementById('resultsEmoji').textContent = emoji;
+  document.getElementById('resultsTitle').textContent = title;
+  document.getElementById('resultsBigScore').textContent = score + ' புள்ளிகள்';
+  document.getElementById('resultsStars').textContent = stars;
+  document.getElementById('rbCorrect').textContent = correct;
+  document.getElementById('rbWrong').textContent = wrong;
+  document.getElementById('rbTime').textContent = timeUsed + 's';
+
+  showScreen('resultsScreen');
+}
+
+function restartGame() { startQuiz(gameMode); }
+
+// ===================================================
+// CONFETTI
+// ===================================================
+function launchConfetti() {
+  const colors = ['#ff6b35','#ffd700','#00e5ff','#b44bff','#00e676','#ff4081'];
+  for (let i = 0; i < 60; i++) {
+    setTimeout(() => {
+      const c = document.createElement('div');
+      c.className = 'confetti-piece';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.top = '-10px';
+      c.style.background = colors[Math.floor(Math.random() * colors.length)];
+      c.style.width = c.style.height = (6 + Math.random() * 10) + 'px';
+      c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+      c.style.animationDuration = (1 + Math.random() * 2) + 's';
+      c.style.animationDelay = (Math.random() * 0.5) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 3000);
+    }, i * 30);
+  }
+}
+
+// ===================================================
+// INIT
+// ===================================================
+createParticles();
+</script>
+</body>
+</html>
